@@ -14,7 +14,7 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://finflow-frontend-7zrkqjd0d-dheerajsaini11s-projects.vercel.app'
+    'https://finflow-frontend-taupe.vercel.app/'
   ],
   credentials: true
 }));

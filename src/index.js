@@ -11,7 +11,13 @@ const budgetRoutes = require('./routes/budgetRoutes');
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://finflow-frontend-7zrkqjd0d-dheerajsaini11s-projects.vercel.app'
+  ],
+  credentials: true
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

@@ -16,7 +16,7 @@ const addTransaction = async (req, res) => {
       [userId, type, amount, category_id || null, note || null, date, person_name || null]
     );
 
-    if (type === 'lend' || type === 'return') {
+    if (type === 'lend' || type === 'return' || type === 'borrow') {
       if (!person_name) {
         return res.status(400).json({ message: 'Person name required for lend/return' });
       }

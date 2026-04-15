@@ -1,6 +1,8 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 const register = async (req, res) => {
   try {
@@ -155,4 +157,39 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getProfile, changePassword };
+const uploadProfilePic = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    // Generate a unique file name using the user ID
+    const fileExt = req.file.originalname.split('.').pop();
+    const fileName = `${req.userId}_${Date.now()}.${fileExt}`;
+
+    // Upload the file buffer to your Supabase public bucket
+    const { error } = await supabase.storage
+     .from('avatars')
+     .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (error) throw error;
+
+    // Retrieve the permanent public URL
+    const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+    const publicUrl = data.publicUrl;
+
+    // Update your users table using $1 parameterization
+    await db.query(
+      'UPDATE users SET avatars_url = $1 WHERE id = $2',
+      [publicUrl, req.userId]
+    );
+
+    res.json({ message: 'Profile picture updated', avatars_url: publicUrl });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { register, login, getProfile, changePassword, uploadProfilePic };

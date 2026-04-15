@@ -26,7 +26,7 @@ const getPersonTransactions = async (req, res) => {
     const transactions = await db.query(
       `SELECT * FROM transactions
        WHERE user_id = $1 AND person_name = $2
-       AND type IN ('lend', 'return', 'borrow') -- ADDED 'borrow' HERE
+       AND type IN ('lend', 'return', 'borrow')
        ORDER BY date DESC`,
       [req.userId, decodeURIComponent(person_name)]
     );
@@ -65,4 +65,21 @@ const settlePerson = async (req, res) => {
   }
 };
 
-module.exports = { getLendBalances, getPersonTransactions, settlePerson };
+const deleteSettledPerson = async (req, res) => {
+  try {
+    const { person_name } = req.params;
+
+    await db.query(
+      `DELETE FROM lend_balance 
+       WHERE user_id = $1 AND person_name = $2 AND balance = 0`,
+      [req.userId, decodeURIComponent(person_name)]
+    );
+
+    res.json({ message: 'Settled record deleted successfully' });
+  } catch (err) {
+    console.error('Delete settled error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { getLendBalances, getPersonTransactions, settlePerson, deleteSettledPerson };

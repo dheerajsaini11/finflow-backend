@@ -1,4 +1,5 @@
 const express = require('express');
+const lendController = require('../controllers/lendController');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const { getLendBalances, getPersonTransactions, settlePerson } = require('../controllers/lendController');

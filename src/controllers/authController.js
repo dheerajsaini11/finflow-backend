@@ -161,25 +161,21 @@ const uploadProfilePic = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    // Generate a unique file name using the user ID
     const fileExt = req.file.originalname.split('.').pop();
     const fileName = `${req.userId}_${Date.now()}.${fileExt}`;
 
-    // Upload the file buffer to your Supabase public bucket
     const { error } = await supabase.storage
-     .from('avatars')
-     .upload(fileName, req.file.buffer, {
+      .from('avatars')
+      .upload(fileName, req.file.buffer, {
         contentType: req.file.mimetype,
         upsert: true
       });
 
     if (error) throw error;
 
-    // Retrieve the permanent public URL
     const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
     const publicUrl = data.publicUrl;
 
-    // Update your users table using $1 parameterization
     await db.query(
       'UPDATE users SET avatars_url = $1 WHERE id = $2',
       [publicUrl, req.userId]
@@ -192,4 +188,67 @@ const uploadProfilePic = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getProfile, changePassword, uploadProfilePic };
+// NEW: Update display name
+const updateProfileName = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Name cannot be empty' });
+    }
+    if (name.trim().length > 100) {
+      return res.status(400).json({ message: 'Name too long (max 100 characters)' });
+    }
+
+    await db.query(
+      'UPDATE users SET name = $1 WHERE id = $2',
+      [name.trim(), req.userId]
+    );
+
+    res.json({ message: 'Name updated successfully', name: name.trim() });
+  } catch (err) {
+    console.error('Update name error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// NEW: Delete account with password confirmation
+const deleteAccount = async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required to delete account' });
+    }
+
+    const result = await db.query(
+      'SELECT * FROM users WHERE id = $1', [req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(password, result.rows[0].password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect password' });
+    }
+
+    // CASCADE on users table will auto-delete all related transactions, categories, budgets, lend_balance
+    await db.query('DELETE FROM users WHERE id = $1', [req.userId]);
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  register,
+  login,
+  getProfile,
+  changePassword,
+  uploadProfilePic,
+  updateProfileName,
+  deleteAccount,
+};

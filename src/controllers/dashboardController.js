@@ -64,6 +64,13 @@ const getDashboard = async (req, res) => {
       [userId]
     );
 
+    // NEW: all-time transaction count for Profile stats card
+    const countResult = await db.query(
+      'SELECT COUNT(*) as total FROM transactions WHERE user_id = $1',
+      [userId]
+    );
+    const totalTransactions = Number(countResult.rows[0].total);
+
     const savingsRate = totals.income > 0
       ? ((totals.income - totals.expense) / totals.income) * 100 : 0;
     const investmentRate = totals.income > 0
@@ -93,7 +100,8 @@ const getDashboard = async (req, res) => {
         isOverPacing: budgetProgress > monthProgress
       },
       burnRate,
-      projectedExpense
+      projectedExpense,
+      total_transactions: totalTransactions,   // NEW
     });
 
   } catch (err) {

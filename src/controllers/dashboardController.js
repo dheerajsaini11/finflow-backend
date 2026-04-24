@@ -64,7 +64,6 @@ const getDashboard = async (req, res) => {
       [userId]
     );
 
-    // NEW: all-time transaction count for Profile stats card
     const countResult = await db.query(
       'SELECT COUNT(*) as total FROM transactions WHERE user_id = $1',
       [userId]
@@ -101,7 +100,7 @@ const getDashboard = async (req, res) => {
       },
       burnRate,
       projectedExpense,
-      total_transactions: totalTransactions,   // NEW
+      total_transactions: totalTransactions,
     });
 
   } catch (err) {
@@ -151,6 +150,7 @@ const getYearlyAnalytics = async (req, res) => {
        AND EXTRACT(MONTH FROM t.date) = $2
        AND EXTRACT(YEAR FROM t.date) = $3
        AND t.type = 'expense'
+       AND c.name IS NOT NULL
        GROUP BY c.id, c.name, c.icon, c.color
        ORDER BY total DESC`,
       [userId, currentMonth, year]

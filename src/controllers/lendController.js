@@ -26,7 +26,7 @@ const getPersonTransactions = async (req, res) => {
     const transactions = await db.query(
       `SELECT * FROM transactions
        WHERE user_id = $1 AND person_name = $2
-       AND type IN ('lend', 'return', 'borrow')
+       AND type IN ('lend', 'return', 'borrow', 'borrow_return')
        ORDER BY date DESC`,
       [req.userId, decodeURIComponent(person_name)]
     );

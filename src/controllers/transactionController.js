@@ -16,10 +16,23 @@ const addTransaction = async (req, res) => {
       [userId, type, amount, category_id || null, note || null, date, person_name || null]
     );
 
-    if (type === 'lend' || type === 'return' || type === 'borrow') {
+    if (type === 'lend' || type === 'return' || type === 'borrow' || type === 'borrow_return') {
       if (!person_name) {
-        return res.status(400).json({ message: 'Person name required for lend/return' });
+        return res.status(400).json({ message: 'Person name required for lend/return/borrow' });
       }
+
+      // Delta logic:
+      // lend          → +amount (they owe you more)
+      // return        → -amount (they paid you back, reduces what they owe)
+      // borrow        → -amount (you owe them more)
+      // borrow_return → +amount (you paid them back, reduces what you owe)
+      const getDelta = (t, amt) => {
+        if (t === 'lend') return Number(amt);
+        if (t === 'return') return -Number(amt);
+        if (t === 'borrow') return -Number(amt);
+        if (t === 'borrow_return') return Number(amt);
+        return 0;
+      };
 
       const existing = await db.query(
         'SELECT id, balance FROM lend_balance WHERE user_id = $1 AND person_name = $2',
@@ -27,13 +40,13 @@ const addTransaction = async (req, res) => {
       );
 
       if (existing.rows.length === 0) {
-        const initialBalance = type === 'lend' ? amount : -amount;
+        const initialBalance = getDelta(type, amount);
         await db.query(
           'INSERT INTO lend_balance (user_id, person_name, balance) VALUES ($1, $2, $3)',
           [userId, person_name, initialBalance]
         );
       } else {
-        const delta = type === 'lend' ? Number(amount) : -Number(amount);
+        const delta = getDelta(type, amount);
         await db.query(
           'UPDATE lend_balance SET balance = balance + $1 WHERE user_id = $2 AND person_name = $3',
           [delta, userId, person_name]

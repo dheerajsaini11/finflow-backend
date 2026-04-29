@@ -201,11 +201,16 @@ const getStreak = async (req, res) => {
       return d.toISOString().split('T')[0];
     });
 
+    // Use IST (UTC+5:30) for date comparison to avoid streak breaking at IST midnight
+    const toISTDateStr = (date) => {
+      const ist = new Date(date.getTime() + (330 * 60 * 1000));
+      return ist.toISOString().split('T')[0];
+    };
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = toISTDateStr(now);
     const yesterdayDate = new Date(now);
     yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterdayStr = yesterdayDate.toISOString().split('T')[0];
+    const yesterdayStr = toISTDateStr(yesterdayDate);
 
     if (days[0] !== todayStr && days[0] !== yesterdayStr) {
       return res.json({ streak: 0, lastLoggedDate: days[0] });

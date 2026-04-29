@@ -8,6 +8,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const lendRoutes = require('./routes/lendRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
+const importRoutes = require('./routes/importRoutes');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/lend', lendRoutes);
 app.use('/api/budget', budgetRoutes);
+app.use('/api/import', importRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'FinFlow API is live 🚀' });

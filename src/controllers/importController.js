@@ -26,16 +26,16 @@ const analyzeCSV = async (req, res) => {
 Headers: ${JSON.stringify(headers)}
 Sample rows (first 5): ${JSON.stringify(sampleRows)}
 
-Return ONLY a valid JSON object (no markdown, no explanation) with this exact structure:
+Return ONLY a raw JSON object. No markdown. No backticks. No explanation.
 {
-  "date_column": "exact column name for transaction date",
-  "amount_column": "exact column name for amount (if single amount column)",
-  "debit_column": "exact column name for debit/expense amount (if split, else null)",
-  "credit_column": "exact column name for credit/income amount (if split, else null)",
-  "description_column": "exact column name for description/narration/remarks",
-  "type_logic": "single" or "split",
-  "date_format": "detected date format e.g. DD/MM/YYYY or YYYY-MM-DD",
-  "notes": "any important observations about this CSV format"
+  "date_column": "single date column name, or null if date is split across columns",
+  "date_parts": {"year": "year column name or null", "month": "month column name or null", "day": "day column name or null"},
+  "amount_column": "amount column if single, else null",
+  "debit_column": "debit column if split, else null",
+  "credit_column": "credit column if split, else null",
+  "description_column": "description/note/category/narration column",
+  "type_logic": "single or split",
+  "notes": "brief observations"
 }`;
 
     const geminiRes = await fetch(
@@ -51,27 +51,42 @@ Return ONLY a valid JSON object (no markdown, no explanation) with this exact st
 
     const geminiData = await geminiRes.json();
     const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const clean = rawText.replace(/```json|```/g, '').trim();
-    const mapping = JSON.parse(clean);
+    console.log('Gemini raw response:', rawText);
+    // Extract JSON robustly — handle markdown fences, extra text
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Gemini did not return valid JSON. Raw: ' + rawText.slice(0, 200));
+    const mapping = JSON.parse(jsonMatch[0]);
+
+    // Helper to build date string from mapping
+    const buildDate = (row, mapping) => {
+      if (mapping.date_column) return row[mapping.date_column] || '';
+      if (mapping.date_parts) {
+        const y = row[mapping.date_parts.year] || '';
+        const m = row[mapping.date_parts.month] || '';
+        const d = row[mapping.date_parts.day] || '';
+        if (y && m && d) return \`\${d} \${m} \${y}\`;
+      }
+      return '';
+    };
 
     // Generate preview rows using the mapping
     const preview = parsed.data.slice(0, 8).map(row => {
       let amount = 0;
       let type = 'expense';
 
-      if (mapping.type_logic === 'split') {
+      if (mapping.debit_column && mapping.credit_column) {
         const debit = parseFloat(row[mapping.debit_column]?.replace(/[,₹\s]/g, '') || '0');
         const credit = parseFloat(row[mapping.credit_column]?.replace(/[,₹\s]/g, '') || '0');
         if (credit > 0) { amount = credit; type = 'income'; }
         else { amount = debit; type = 'expense'; }
       } else {
         amount = parseFloat(row[mapping.amount_column]?.replace(/[,₹\s]/g, '') || '0');
-        type = amount >= 0 ? 'income' : 'expense';
+        type = amount >= 0 ? 'expense' : 'income';
         amount = Math.abs(amount);
       }
 
       return {
-        raw_date: row[mapping.date_column] || '',
+        raw_date: buildDate(row, mapping),
         description: row[mapping.description_column] || '',
         amount,
         type,
@@ -90,7 +105,8 @@ Return ONLY a valid JSON object (no markdown, no explanation) with this exact st
       total_rows: parsed.data.length,
       headers,
       raw_data: parsed.data,
-      categories: categories.rows
+      categories: categories.rows,
+      buildDateHelper: mapping.date_parts ? 'parts' : 'single'
     });
 
   } catch (err) {

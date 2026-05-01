@@ -64,7 +64,7 @@ Return ONLY a raw JSON object. No markdown. No backticks. No explanation.
         const y = row[mapping.date_parts.year] || '';
         const m = row[mapping.date_parts.month] || '';
         const d = row[mapping.date_parts.day] || '';
-        if (y && m && d) return \`\${d} \${m} \${y}\`;
+        if (y && m && d) return `${d} ${m} ${y}`;
       }
       return '';
     };

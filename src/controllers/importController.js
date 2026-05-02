@@ -9,10 +9,11 @@ const analyzeCSV = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-    const csvText = req.file.buffer.toString('utf-8');
+    // Strip BOM if present
+    const csvText = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
 
     // Parse CSV
-    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true, trimHeaders: true });
     if (!parsed.data || parsed.data.length === 0) {
       return res.status(400).json({ message: 'CSV is empty or invalid' });
     }
@@ -52,9 +53,10 @@ Return ONLY a raw JSON object. No markdown. No backticks. No explanation.
     const geminiData = await geminiRes.json();
     const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('Gemini raw response:', rawText);
-    // Extract JSON robustly — handle markdown fences, extra text
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Gemini did not return valid JSON. Raw: ' + rawText.slice(0, 200));
+    // Strip markdown fences, then extract JSON object
+    const cleaned = rawText.replace(/```json|```/gi, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Gemini did not return valid JSON. Raw: ' + rawText.slice(0, 300));
     const mapping = JSON.parse(jsonMatch[0]);
 
     // Helper to build date string from mapping
@@ -85,9 +87,12 @@ Return ONLY a raw JSON object. No markdown. No backticks. No explanation.
         amount = Math.abs(amount);
       }
 
+      const desc = (mapping.description_column && row[mapping.description_column])
+        ? row[mapping.description_column]
+        : '';
       return {
         raw_date: buildDate(row, mapping),
-        description: row[mapping.description_column] || '',
+        description: desc,
         amount,
         type,
       };

@@ -51,6 +51,7 @@ Return ONLY a raw JSON object. No markdown. No backticks. No explanation.
     );
 
     const geminiData = await geminiRes.json();
+    console.log('Gemini full response:', JSON.stringify(geminiData).slice(0, 500));
     const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
     console.log('Gemini raw response:', rawText);
     // Strip markdown fences, then extract JSON object
